@@ -1844,19 +1844,30 @@ playsinline>
 <script>
 
 /* =====================================================
-   STATE
+   VOXX PRANK — CONTROL SYSTEM
 ===================================================== */
 
 let prankOpen = false;
 
-let scrollCount = 0;
+/* 3 swipe trigger */
+let swipeCount = 0;
+let swipeResetTimer = null;
+let lastSwipeTime = 0;
 
-let scrollCooldown = false;
+/* Back counter */
+let backCount = 0;
+const BACK_LIMIT = 10;
 
-let scrollResetTimer = null;
-
+/* Minimal history guard */
 let historyGuardActive = false;
 
+/* Refresh protection */
+let refreshDialogOpen = false;
+
+
+/* =====================================================
+   ELEMENTS
+===================================================== */
 
 const prankAudio =
     document.getElementById("prankAudio");
@@ -1881,13 +1892,10 @@ function setupMediaSession(){
             new MediaMetadata({
 
                 title:"VOXX PRANK",
-
                 artist:"SISIREY VOX",
-
                 album:"VOXX STUDIO"
 
             });
-
 
         try{
 
@@ -1901,9 +1909,7 @@ function setupMediaSession(){
 
                     prankAudio.play()
                         .then(function(){
-
                             setMediaPlaying();
-
                         })
                         .catch(function(){});
 
@@ -1913,6 +1919,33 @@ function setupMediaSession(){
         }
         catch(error){}
 
+        try{
+
+            navigator.mediaSession.setActionHandler(
+                "pause",
+                function(){
+
+                    /*
+                     * Do not allow the media-session
+                     * pause action to permanently stop
+                     * the prank audio.
+                     */
+
+                    if(!prankOpen){
+                        return;
+                    }
+
+                    prankAudio.play()
+                        .then(function(){
+                            setMediaPlaying();
+                        })
+                        .catch(function(){});
+
+                }
+            );
+
+        }
+        catch(error){}
 
     }
     catch(error){}
@@ -1947,45 +1980,54 @@ function playPrankSound(){
         return;
     }
 
-
     prankAudio.loop = true;
-
     prankAudio.volume = 1.0;
 
-
     try{
-
         prankAudio.currentTime = 0;
-
     }
     catch(error){}
 
-
     setupMediaSession();
 
+    /*
+     * IMPORTANT:
+     *
+     * This function is called directly from
+     * the user's swipe / click event.
+     *
+     * That gives the browser the best chance
+     * of allowing autoplay.
+     */
 
-    prankAudio.play()
-        .then(function(){
+    const promise =
+        prankAudio.play();
 
-            setMediaPlaying();
+    if(promise){
 
-        })
-        .catch(function(error){
+        promise
+            .then(function(){
 
-            console.log(
-                "Audio playback blocked:",
-                error
-            );
+                setMediaPlaying();
 
-        });
+            })
+            .catch(function(error){
+
+                console.log(
+                    "VOXX audio blocked:",
+                    error
+                );
+
+            });
+
+    }
 
 }
 
 
-/*
- * If the MP3 reaches the end for any reason,
- * restart it while the prank is active.
- */
+/* =====================================================
+   AUDIO LOOP RECOVERY
+===================================================== */
 
 prankAudio.addEventListener(
     "ended",
@@ -1995,9 +2037,7 @@ prankAudio.addEventListener(
             return;
         }
 
-
         prankAudio.currentTime = 0;
-
 
         prankAudio.play()
             .then(function(){
@@ -2012,7 +2052,7 @@ prankAudio.addEventListener(
 
 
 /* =====================================================
-   BACKGROUND AUDIO
+   VISIBILITY / BACKGROUND AUDIO
 ===================================================== */
 
 document.addEventListener(
@@ -2023,12 +2063,9 @@ document.addEventListener(
             return;
         }
 
-
         /*
-         * Do NOT pause audio when hidden.
-         *
-         * If Chrome keeps the page/media session alive,
-         * the MP3 may continue in the background.
+         * We intentionally DO NOT pause the audio
+         * when the page goes into the background.
          */
 
         if(
@@ -2062,7 +2099,6 @@ window.addEventListener(
             return;
         }
 
-
         if(prankAudio.paused){
 
             prankAudio.play()
@@ -2080,7 +2116,7 @@ window.addEventListener(
 
 
 /* =====================================================
-   MINIMAL HISTORY BACK PROTECTION
+   MINIMAL BACK HISTORY GUARD
 ===================================================== */
 
 function enableBackProtection(){
@@ -2089,12 +2125,12 @@ function enableBackProtection(){
         return;
     }
 
-
     historyGuardActive = true;
 
-
     /*
-     * Only ONE temporary history entry is created.
+     * Only one temporary entry.
+     *
+     * We don't continuously create history entries.
      */
 
     history.pushState(
@@ -2108,15 +2144,90 @@ function enableBackProtection(){
 }
 
 
-/*
- * Browser history Back.
- *
- * This can protect normal browser-history navigation.
- *
- * Android's system edge Back gesture is controlled by
- * Android/Chrome and cannot be selectively disabled
- * by ordinary webpage JavaScript.
- */
+/* =====================================================
+   BACK DIALOG
+===================================================== */
+
+function showBackDialog(){
+
+    if(document.getElementById("voxxBackDialog")){
+        return;
+    }
+
+
+    const box =
+        document.createElement("div");
+
+    box.id =
+        "voxxBackDialog";
+
+
+    box.innerHTML = `
+
+        <div class="voxx-dialog-backdrop">
+
+            <div class="voxx-dialog">
+
+                <div class="voxx-dialog-title">
+                    VOXX STUDIO
+                </div>
+
+                <div class="voxx-dialog-text">
+                    NICE TRY 💀
+                    <br><br>
+                    THE PRANK IS STILL ACTIVE.
+                </div>
+
+                <button
+                    class="voxx-dialog-button"
+                    id="voxxBackOk">
+
+                    OK
+
+                </button>
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    document.body.appendChild(box);
+
+
+    document
+        .getElementById("voxxBackOk")
+        .onclick = function(){
+
+            box.remove();
+
+            backCount = 0;
+
+            /*
+             * Restore the history guard.
+             */
+
+            if(prankOpen){
+
+                history.pushState(
+                    {
+                        voxxPrank:true
+                    },
+                    "",
+                    window.location.href
+                );
+
+            }
+
+        };
+
+}
+
+
+/* =====================================================
+   BACK INTERCEPTION
+===================================================== */
 
 window.addEventListener(
     "popstate",
@@ -2127,6 +2238,13 @@ window.addEventListener(
         }
 
 
+        /*
+         * Immediately restore the guard entry.
+         *
+         * This prevents normal Back navigation
+         * from escaping the prank.
+         */
+
         history.pushState(
             {
                 voxxPrank:true
@@ -2135,12 +2253,203 @@ window.addEventListener(
             window.location.href
         );
 
+
+        backCount++;
+
+
+        console.log(
+            "VOXX BACK:",
+            backCount + "/" + BACK_LIMIT
+        );
+
+
+        /*
+         * Only after 10 Back attempts show
+         * the dialogue.
+         */
+
+        if(backCount >= BACK_LIMIT){
+
+            backCount = 0;
+
+            showBackDialog();
+
+        }
+
     }
 );
 
 
 /* =====================================================
-   REFRESH / CLOSE WARNING
+   KEYBOARD BACK / ESC
+===================================================== */
+
+document.addEventListener(
+    "keydown",
+    function(event){
+
+        if(!prankOpen){
+            return;
+        }
+
+
+        /*
+         * Escape should not close the prank.
+         */
+
+        if(event.key === "Escape"){
+
+            event.preventDefault();
+
+            backCount++;
+
+            if(backCount >= BACK_LIMIT){
+
+                backCount = 0;
+
+                showBackDialog();
+
+            }
+
+            return;
+
+        }
+
+
+        /*
+         * Refresh keyboard shortcuts.
+         */
+
+        if(
+            event.key === "F5" ||
+            (
+                (event.ctrlKey || event.metaKey) &&
+                event.key.toLowerCase() === "r"
+            )
+        ){
+
+            event.preventDefault();
+
+            showRefreshDialog();
+
+            return;
+
+        }
+
+    },
+    true
+);
+
+
+/* =====================================================
+   REFRESH DIALOG
+===================================================== */
+
+function showRefreshDialog(){
+
+    if(refreshDialogOpen){
+        return;
+    }
+
+    refreshDialogOpen = true;
+
+
+    const existing =
+        document.getElementById(
+            "voxxRefreshDialog"
+        );
+
+    if(existing){
+        existing.remove();
+    }
+
+
+    const box =
+        document.createElement("div");
+
+    box.id =
+        "voxxRefreshDialog";
+
+
+    box.innerHTML = `
+
+        <div class="voxx-dialog-backdrop">
+
+            <div class="voxx-dialog">
+
+                <div class="voxx-dialog-title">
+                    REFRESH BLOCKED
+                </div>
+
+                <div class="voxx-dialog-text">
+                    THE VOXX PRANK IS ACTIVE.
+                    <br><br>
+                    ARE YOU SURE YOU WANT TO REFRESH?
+                </div>
+
+                <div class="voxx-dialog-buttons">
+
+                    <button
+                        class="voxx-dialog-button"
+                        id="voxxRefreshCancel">
+
+                        CANCEL
+
+                    </button>
+
+                    <button
+                        class="voxx-dialog-button danger"
+                        id="voxxRefreshConfirm">
+
+                        REFRESH
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    document.body.appendChild(box);
+
+
+    document
+        .getElementById("voxxRefreshCancel")
+        .onclick = function(){
+
+            refreshDialogOpen = false;
+
+            box.remove();
+
+        };
+
+
+    document
+        .getElementById("voxxRefreshConfirm")
+        .onclick = function(){
+
+            /*
+             * If the user explicitly confirms,
+             * allow the reload.
+             */
+
+            refreshDialogOpen = false;
+
+            box.remove();
+
+            window.location.reload();
+
+        };
+
+}
+
+
+/* =====================================================
+   NATIVE REFRESH / CLOSE PROTECTION
 ===================================================== */
 
 window.addEventListener(
@@ -2153,11 +2462,9 @@ window.addEventListener(
 
 
         /*
-         * Modern browsers display their own
-         * confirmation dialog.
+         * Browser-controlled confirmation dialog.
          *
-         * Custom dialog text is intentionally
-         * controlled by the browser.
+         * The browser decides the actual wording.
          */
 
         event.preventDefault();
@@ -2195,13 +2502,17 @@ function startPrank(){
     enableBackProtection();
 
 
+    /*
+     * Start audio immediately.
+     */
+
     playPrankSound();
 
 }
 
 
 /* =====================================================
-   THREE-SWIPE TRIGGER
+   SWIPE SYSTEM
 ===================================================== */
 
 function registerSwipe(){
@@ -2211,88 +2522,86 @@ function registerSwipe(){
     }
 
 
-    if(scrollCooldown){
+    const now =
+        Date.now();
+
+
+    /*
+     * Ignore accidental duplicate events.
+     */
+
+    if(
+        now - lastSwipeTime <
+        250
+    ){
+
         return;
+
     }
 
 
-    scrollCooldown = true;
+    lastSwipeTime = now;
 
 
-    scrollCount++;
+    swipeCount++;
 
 
     console.log(
-        "VOXX swipe:",
-        scrollCount + "/3"
+        "VOXX SWIPE:",
+        swipeCount + "/3"
     );
 
 
     /*
-     * Exactly three gestures.
+     * Reset the three-swipe sequence
+     * if the user takes too long.
      */
 
-    if(scrollCount >= 3){
+    clearTimeout(
+        swipeResetTimer
+    );
 
-        scrollCount = 0;
+
+    swipeResetTimer =
+        setTimeout(
+            function(){
+
+                swipeCount = 0;
+
+                console.log(
+                    "VOXX swipe sequence reset"
+                );
+
+            },
+            3000
+        );
+
+
+    /*
+     * THREE SWIPES = PRANK.
+     */
+
+    if(swipeCount >= 3){
+
+        swipeCount = 0;
+
+        clearTimeout(
+            swipeResetTimer
+        );
 
         startPrank();
 
     }
 
-
-    setTimeout(
-        function(){
-
-            scrollCooldown = false;
-
-        },
-        300
-    );
-
 }
 
 
 /* =====================================================
-   DESKTOP WHEEL
-===================================================== */
-
-window.addEventListener(
-    "wheel",
-    function(event){
-
-        if(prankOpen){
-            return;
-        }
-
-
-        if(
-            Math.abs(event.deltaY) <
-            20
-        ){
-
-            return;
-
-        }
-
-
-        registerSwipe();
-
-    },
-    {
-        passive:true
-    }
-);
-
-
-/* =====================================================
-   MOBILE SWIPE
+   MOBILE SWIPE DETECTION
 ===================================================== */
 
 let touchStartX = 0;
-
 let touchStartY = 0;
-
 let touchStartTime = 0;
 
 
@@ -2383,11 +2692,14 @@ window.addEventListener(
 
 
         /*
-         * Count a genuine swipe.
+         * Genuine swipe:
+         *
+         * 60px minimum movement
+         * within 1.2 seconds.
          */
 
         if(
-            distance >= 50 &&
+            distance >= 60 &&
             duration <= 1200
         ){
 
@@ -2403,7 +2715,122 @@ window.addEventListener(
 
 
 /* =====================================================
-   SCROLL COUNTER RESET
+   DESKTOP WHEEL SWIPE
+===================================================== */
+
+window.addEventListener(
+    "wheel",
+    function(event){
+
+        if(prankOpen){
+            return;
+        }
+
+
+        if(
+            Math.abs(event.deltaY) <
+            30
+        ){
+
+            return;
+
+        }
+
+
+        registerSwipe();
+
+    },
+    {
+        passive:true
+    }
+);
+
+
+/* =====================================================
+   TRACKPAD / POINTER SWIPE
+===================================================== */
+
+let pointerStartX = 0;
+let pointerStartY = 0;
+let pointerStartTime = 0;
+
+
+window.addEventListener(
+    "pointerdown",
+    function(event){
+
+        if(prankOpen){
+            return;
+        }
+
+
+        pointerStartX =
+            event.clientX;
+
+
+        pointerStartY =
+            event.clientY;
+
+
+        pointerStartTime =
+            Date.now();
+
+    },
+    {
+        passive:true
+    }
+);
+
+
+window.addEventListener(
+    "pointerup",
+    function(event){
+
+        if(prankOpen){
+            return;
+        }
+
+
+        const dx =
+            event.clientX -
+            pointerStartX;
+
+
+        const dy =
+            event.clientY -
+            pointerStartY;
+
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        const duration =
+            Date.now() -
+            pointerStartTime;
+
+
+        if(
+            distance >= 80 &&
+            duration <= 1000
+        ){
+
+            registerSwipe();
+
+        }
+
+    },
+    {
+        passive:true
+    }
+);
+
+
+/* =====================================================
+   SCROLL RESET
 ===================================================== */
 
 window.addEventListener(
@@ -2415,20 +2842,10 @@ window.addEventListener(
         }
 
 
-        clearTimeout(
-            scrollResetTimer
-        );
-
-
-        scrollResetTimer =
-            setTimeout(
-                function(){
-
-                    scrollCount = 0;
-
-                },
-                5000
-            );
+        /*
+         * Don't immediately reset the swipe counter.
+         * The three gestures have a 3-second window.
+         */
 
     },
     {
@@ -2631,6 +3048,150 @@ function createGlitchBars(){
     );
 
 }
+
+
+/* =====================================================
+   DIALOG CSS
+===================================================== */
+
+const dialogStyle =
+    document.createElement("style");
+
+
+dialogStyle.textContent = `
+
+#voxxBackDialog,
+#voxxRefreshDialog{
+
+    position:fixed;
+
+    inset:0;
+
+    z-index:1000005;
+
+}
+
+
+.voxx-dialog-backdrop{
+
+    position:absolute;
+
+    inset:0;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:25px;
+
+    background:rgba(0,0,0,.78);
+
+    backdrop-filter:blur(10px);
+
+}
+
+
+.voxx-dialog{
+
+    width:min(420px,92vw);
+
+    padding:30px;
+
+    text-align:center;
+
+    background:#111;
+
+    color:white;
+
+    border:1px solid rgba(255,255,255,.25);
+
+    box-shadow:
+        0 0 30px rgba(255,0,80,.35),
+        0 0 70px rgba(0,255,255,.15);
+
+    font-family:Manrope,sans-serif;
+
+}
+
+
+.voxx-dialog-title{
+
+    font-size:18px;
+
+    font-weight:800;
+
+    letter-spacing:3px;
+
+}
+
+
+.voxx-dialog-text{
+
+    margin-top:20px;
+
+    color:#ddd;
+
+    font-size:13px;
+
+    line-height:1.7;
+
+}
+
+
+.voxx-dialog-buttons{
+
+    display:flex;
+
+    gap:10px;
+
+    margin-top:25px;
+
+}
+
+
+.voxx-dialog-button{
+
+    flex:1;
+
+    padding:13px;
+
+    border:1px solid white;
+
+    background:white;
+
+    color:#111;
+
+    font-family:inherit;
+
+    font-weight:700;
+
+    font-size:10px;
+
+    letter-spacing:2px;
+
+    cursor:pointer;
+
+}
+
+
+.voxx-dialog-button.danger{
+
+    background:#ff003c;
+
+    border-color:#ff003c;
+
+    color:white;
+
+}
+
+`;
+
+
+document.head.appendChild(
+    dialogStyle
+);
 
 
 /* =====================================================
