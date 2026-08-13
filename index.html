@@ -1161,15 +1161,9 @@ footer{
 
 <body>
 
-
-<!-- =====================================================
-     STORE
-===================================================== -->
-
 <div class="topbar">
 FREE SHIPPING ON ORDERS OVER ₹2,999 · SS26 COLLECTION
 </div>
-
 
 <nav>
 
@@ -1234,10 +1228,6 @@ VIEW PRODUCTS
 
 </section>
 
-
-<!-- =====================================================
-     PRODUCTS
-===================================================== -->
 
 <section id="shop">
 
@@ -1513,10 +1503,6 @@ QUICK VIEW
 </section>
 
 
-<!-- =====================================================
-     CATEGORIES
-===================================================== -->
-
 <section class="categories" id="categories">
 
 <div class="heading">
@@ -1567,10 +1553,6 @@ OUTERWEAR
 </section>
 
 
-<!-- =====================================================
-     LOOKBOOK
-===================================================== -->
-
 <section class="lookbook">
 
 <div class="look-image"></div>
@@ -1608,10 +1590,6 @@ EXPLORE LOOKBOOK
 </section>
 
 
-<!-- =====================================================
-     ABOUT
-===================================================== -->
-
 <section class="about" id="about">
 
 <div class="about-image"></div>
@@ -1646,10 +1624,6 @@ OUR STORY →
 
 </section>
 
-
-<!-- =====================================================
-     NEWSLETTER
-===================================================== -->
 
 <section class="newsletter">
 
@@ -1690,10 +1664,6 @@ INSTAGRAM · TERMS · PRIVACY
 
 </footer>
 
-
-<!-- =====================================================
-     PRANK OVERLAY
-===================================================== -->
 
 <div id="prankOverlay">
 
@@ -1823,15 +1793,6 @@ stroke-linejoin="round"/>
 </div>
 
 
-<!-- =====================================================
-     AUDIO
-     
-     Repository:
-     
-     index.html
-     prank.mp3
-===================================================== -->
-
 <audio
 id="prankAudio"
 src="./prank.mp3"
@@ -1845,23 +1806,32 @@ playsinline>
 
 /* =====================================================
    VOXX PRANK — CONTROL SYSTEM
+   3-SWIPE TRIGGER REMOVED
 ===================================================== */
 
 let prankOpen = false;
 
-/* 3 swipe trigger */
-let swipeCount = 0;
-let swipeResetTimer = null;
-let lastSwipeTime = 0;
 
-/* Back counter */
+/* =====================================================
+   BACK COUNTER
+===================================================== */
+
 let backCount = 0;
+
 const BACK_LIMIT = 10;
 
-/* Minimal history guard */
+
+/* =====================================================
+   HISTORY GUARD
+===================================================== */
+
 let historyGuardActive = false;
 
-/* Refresh protection */
+
+/* =====================================================
+   REFRESH PROTECTION
+===================================================== */
+
 let refreshDialogOpen = false;
 
 
@@ -1897,6 +1867,7 @@ function setupMediaSession(){
 
             });
 
+
         try{
 
             navigator.mediaSession.setActionHandler(
@@ -1909,7 +1880,9 @@ function setupMediaSession(){
 
                     prankAudio.play()
                         .then(function(){
+
                             setMediaPlaying();
+
                         })
                         .catch(function(){});
 
@@ -1919,17 +1892,12 @@ function setupMediaSession(){
         }
         catch(error){}
 
+
         try{
 
             navigator.mediaSession.setActionHandler(
                 "pause",
                 function(){
-
-                    /*
-                     * Do not allow the media-session
-                     * pause action to permanently stop
-                     * the prank audio.
-                     */
 
                     if(!prankOpen){
                         return;
@@ -1937,7 +1905,9 @@ function setupMediaSession(){
 
                     prankAudio.play()
                         .then(function(){
+
                             setMediaPlaying();
+
                         })
                         .catch(function(){});
 
@@ -1983,25 +1953,21 @@ function playPrankSound(){
     prankAudio.loop = true;
     prankAudio.volume = 1.0;
 
+
     try{
+
         prankAudio.currentTime = 0;
+
     }
     catch(error){}
 
+
     setupMediaSession();
 
-    /*
-     * IMPORTANT:
-     *
-     * This function is called directly from
-     * the user's swipe / click event.
-     *
-     * That gives the browser the best chance
-     * of allowing autoplay.
-     */
 
     const promise =
         prankAudio.play();
+
 
     if(promise){
 
@@ -2063,10 +2029,6 @@ document.addEventListener(
             return;
         }
 
-        /*
-         * We intentionally DO NOT pause the audio
-         * when the page goes into the background.
-         */
 
         if(
             document.visibilityState ===
@@ -2127,11 +2089,6 @@ function enableBackProtection(){
 
     historyGuardActive = true;
 
-    /*
-     * Only one temporary entry.
-     *
-     * We don't continuously create history entries.
-     */
 
     history.pushState(
         {
@@ -2157,6 +2114,7 @@ function showBackDialog(){
 
     const box =
         document.createElement("div");
+
 
     box.id =
         "voxxBackDialog";
@@ -2204,9 +2162,6 @@ function showBackDialog(){
 
             backCount = 0;
 
-            /*
-             * Restore the history guard.
-             */
 
             if(prankOpen){
 
@@ -2238,13 +2193,6 @@ window.addEventListener(
         }
 
 
-        /*
-         * Immediately restore the guard entry.
-         *
-         * This prevents normal Back navigation
-         * from escaping the prank.
-         */
-
         history.pushState(
             {
                 voxxPrank:true
@@ -2262,11 +2210,6 @@ window.addEventListener(
             backCount + "/" + BACK_LIMIT
         );
 
-
-        /*
-         * Only after 10 Back attempts show
-         * the dialogue.
-         */
 
         if(backCount >= BACK_LIMIT){
 
@@ -2293,15 +2236,12 @@ document.addEventListener(
         }
 
 
-        /*
-         * Escape should not close the prank.
-         */
-
         if(event.key === "Escape"){
 
             event.preventDefault();
 
             backCount++;
+
 
             if(backCount >= BACK_LIMIT){
 
@@ -2315,10 +2255,6 @@ document.addEventListener(
 
         }
 
-
-        /*
-         * Refresh keyboard shortcuts.
-         */
 
         if(
             event.key === "F5" ||
@@ -2359,6 +2295,7 @@ function showRefreshDialog(){
             "voxxRefreshDialog"
         );
 
+
     if(existing){
         existing.remove();
     }
@@ -2366,6 +2303,7 @@ function showRefreshDialog(){
 
     const box =
         document.createElement("div");
+
 
     box.id =
         "voxxRefreshDialog";
@@ -2432,11 +2370,6 @@ function showRefreshDialog(){
         .getElementById("voxxRefreshConfirm")
         .onclick = function(){
 
-            /*
-             * If the user explicitly confirms,
-             * allow the reload.
-             */
-
             refreshDialogOpen = false;
 
             box.remove();
@@ -2460,12 +2393,6 @@ window.addEventListener(
             return;
         }
 
-
-        /*
-         * Browser-controlled confirmation dialog.
-         *
-         * The browser decides the actual wording.
-         */
 
         event.preventDefault();
 
@@ -2502,356 +2429,9 @@ function startPrank(){
     enableBackProtection();
 
 
-    /*
-     * Start audio immediately.
-     */
-
     playPrankSound();
 
 }
-
-
-/* =====================================================
-   SWIPE SYSTEM
-===================================================== */
-
-function registerSwipe(){
-
-    if(prankOpen){
-        return;
-    }
-
-
-    const now =
-        Date.now();
-
-
-    /*
-     * Ignore accidental duplicate events.
-     */
-
-    if(
-        now - lastSwipeTime <
-        250
-    ){
-
-        return;
-
-    }
-
-
-    lastSwipeTime = now;
-
-
-    swipeCount++;
-
-
-    console.log(
-        "VOXX SWIPE:",
-        swipeCount + "/3"
-    );
-
-
-    /*
-     * Reset the three-swipe sequence
-     * if the user takes too long.
-     */
-
-    clearTimeout(
-        swipeResetTimer
-    );
-
-
-    swipeResetTimer =
-        setTimeout(
-            function(){
-
-                swipeCount = 0;
-
-                console.log(
-                    "VOXX swipe sequence reset"
-                );
-
-            },
-            3000
-        );
-
-
-    /*
-     * THREE SWIPES = PRANK.
-     */
-
-    if(swipeCount >= 3){
-
-        swipeCount = 0;
-
-        clearTimeout(
-            swipeResetTimer
-        );
-
-        startPrank();
-
-    }
-
-}
-
-
-/* =====================================================
-   MOBILE SWIPE DETECTION
-===================================================== */
-
-let touchStartX = 0;
-let touchStartY = 0;
-let touchStartTime = 0;
-
-
-window.addEventListener(
-    "touchstart",
-    function(event){
-
-        if(prankOpen){
-            return;
-        }
-
-
-        if(
-            !event.touches ||
-            !event.touches.length
-        ){
-
-            return;
-
-        }
-
-
-        const touch =
-            event.touches[0];
-
-
-        touchStartX =
-            touch.clientX;
-
-
-        touchStartY =
-            touch.clientY;
-
-
-        touchStartTime =
-            Date.now();
-
-    },
-    {
-        passive:true
-    }
-);
-
-
-window.addEventListener(
-    "touchend",
-    function(event){
-
-        if(prankOpen){
-            return;
-        }
-
-
-        if(
-            !event.changedTouches ||
-            !event.changedTouches.length
-        ){
-
-            return;
-
-        }
-
-
-        const touch =
-            event.changedTouches[0];
-
-
-        const dx =
-            touch.clientX -
-            touchStartX;
-
-
-        const dy =
-            touch.clientY -
-            touchStartY;
-
-
-        const distance =
-            Math.sqrt(
-                dx * dx +
-                dy * dy
-            );
-
-
-        const duration =
-            Date.now() -
-            touchStartTime;
-
-
-        /*
-         * Genuine swipe:
-         *
-         * 60px minimum movement
-         * within 1.2 seconds.
-         */
-
-        if(
-            distance >= 60 &&
-            duration <= 1200
-        ){
-
-            registerSwipe();
-
-        }
-
-    },
-    {
-        passive:true
-    }
-);
-
-
-/* =====================================================
-   DESKTOP WHEEL SWIPE
-===================================================== */
-
-window.addEventListener(
-    "wheel",
-    function(event){
-
-        if(prankOpen){
-            return;
-        }
-
-
-        if(
-            Math.abs(event.deltaY) <
-            30
-        ){
-
-            return;
-
-        }
-
-
-        registerSwipe();
-
-    },
-    {
-        passive:true
-    }
-);
-
-
-/* =====================================================
-   TRACKPAD / POINTER SWIPE
-===================================================== */
-
-let pointerStartX = 0;
-let pointerStartY = 0;
-let pointerStartTime = 0;
-
-
-window.addEventListener(
-    "pointerdown",
-    function(event){
-
-        if(prankOpen){
-            return;
-        }
-
-
-        pointerStartX =
-            event.clientX;
-
-
-        pointerStartY =
-            event.clientY;
-
-
-        pointerStartTime =
-            Date.now();
-
-    },
-    {
-        passive:true
-    }
-);
-
-
-window.addEventListener(
-    "pointerup",
-    function(event){
-
-        if(prankOpen){
-            return;
-        }
-
-
-        const dx =
-            event.clientX -
-            pointerStartX;
-
-
-        const dy =
-            event.clientY -
-            pointerStartY;
-
-
-        const distance =
-            Math.sqrt(
-                dx * dx +
-                dy * dy
-            );
-
-
-        const duration =
-            Date.now() -
-            pointerStartTime;
-
-
-        if(
-            distance >= 80 &&
-            duration <= 1000
-        ){
-
-            registerSwipe();
-
-        }
-
-    },
-    {
-        passive:true
-    }
-);
-
-
-/* =====================================================
-   SCROLL RESET
-===================================================== */
-
-window.addEventListener(
-    "scroll",
-    function(){
-
-        if(prankOpen){
-            return;
-        }
-
-
-        /*
-         * Don't immediately reset the swipe counter.
-         * The three gestures have a 3-second window.
-         */
-
-    },
-    {
-        passive:true
-    }
-);
 
 
 /* =====================================================
@@ -3203,4 +2783,4 @@ setupMediaSession();
 </script>
 
 </body>
-</html>
+    </html>
